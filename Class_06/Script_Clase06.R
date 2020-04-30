@@ -7,7 +7,7 @@
 
 # Spatial randomness
 
-install.packages('plot.matrix')
+#install.packages('plot.matrix')
 library(plot.matrix)
 library(classInt)
 
@@ -26,12 +26,14 @@ plot(B, breaks = b_B$brks, key=NULL)
 #Covid
 library(data.table)
 
+# Voy a ir creando y que vaya leyendo cada arichivo que esta en esa carpeta y que recolecte solo los casos confimrados por fecha
+#cambianod le nombre de las columnas segun la fecha(para eso esta el for )
 archivos<-dir(path = "Class_06/producto2/")
 COVID<-fread(input =paste0("Class_06/producto2/",archivos[1]))
 names(COVID)[6]<-paste0("Confirmados_",substr(archivos[1],start = 1,stop = 10))
 for(i in 2:length(archivos)){
   aa<-fread(input =paste0("Class_06/producto2/",archivos[i]))
-  aa<-aa[,.(`Codigo comuna`,`Casos Confirmados`)]
+    aa<-aa[,.(`Codigo comuna`,`Casos Confirmados`)]
   names(aa)[2]<-paste0("Confirmados_",substr(archivos[i],start = 1,stop = 10))
   COVID<-merge(COVID,aa,by="Codigo comuna",all.x=T,sort=F)
 }
@@ -48,27 +50,36 @@ ggplot(COVID,aes(x=`Confirmados_2020-04-15`,y=`Confirmados_2020-04-17`))+geom_po
 
 
 #---- Intro 2 Spatial Autocorrelation  -------------------
-#install.packages("chilemapas")
+install.packages("chilemapas")
 library(chilemapas)
 library(data.table)
 library(ggplot2)
+library(sf)
+install.packages("spdep")
 
 comunas_rm<-mapa_comunas[mapa_comunas$codigo_region==13,]
 
 comunas_rm<-merge(x = comunas_rm,y = COVID[`Codigo region`==13,],by.x="codigo_comuna",by.y="Codigo comuna",all.x=TRUE,sort=F)
 
+comunas_rm<-st_sf(comunas_rm)
+
+class(comunas_rm)
+
+#Para hacer analisis espaciales hayq ue cambiarlo en otro formato, eso si el class debe ser "sf"
 comunas_rm<-as_Spatial(comunas_rm)
+
+class(comunas_rm)
 
 library(spdep)
 
-nbs<-poly2nb(comunas_rm,queen = T)
+nbs<-poly2nb(comunas_rm,queen = T) #desde un poligono genereo cuales son los vecinos, con un comando queen
 
-w_rm<-nb2listw(nbs,style = "W")
+w_rm<-nb2listw(nbs,style = "W") #paso de nb(neighbors) a una lista de pesos espaciales estilo W
 
 plot(comunas_rm)
-plot(nbs,coordinates(comunas_rm),add=T,col='blue',pch=".")
+plot(nbs,coordinates(comunas_rm),add=T,col='blue',pch=".") #Muestro los vecinos con los centroides de cada uno
 
-sl<-lag.listw(w_rm,comunas_rm$Confirmados_2020.04.17)
+sl<-lag.listw(w_rm,comunas_rm$Confirmados_2020.04.17) #generar el resago espacial de esos casos utilizando esat lista 
 
 plot(comunas_rm$Confirmados_2020.04.17,sl)
 
