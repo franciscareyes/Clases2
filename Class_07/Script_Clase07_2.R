@@ -5,7 +5,7 @@ rm(list = ls(all.names = T))
 ## Program: Master in Business Analytics
 ## Institution: Universidad Adolfo Ibáñez
 
-install.packages("deldir")
+#install.packages("deldir")
 
 packageList<-c('tidyverse','leaflet','data.table','rgdal','ggplot2','deldir','sp','RColorBrewer','KernSmooth','googleway')
 sapply(packageList, FUN = require, character.only=TRUE)
@@ -18,7 +18,7 @@ sapply(packageList, FUN = require, character.only=TRUE)
 # Mapa accidentes en bicicleta 2016
 # Fuente: http://www.ide.cl/descarga/capas/item/accidentes-en-bicicleta-ano-2016.html?category_id=64 
 
-biciMap<-readOGR(dsn ="Class_07/bikeShopsStgo.rds")
+biciMap<-readOGR(dsn ="Class_07/Bici_personaGS2016_2/Bici_personaGS2016_2.shp")
 
 #exploring the file
 biciMap@proj4string # proyección
@@ -27,7 +27,7 @@ biciMap@coords # coordenadas 1
 coordinates(biciMap) # coordenadas lat (Y) long (X)
 View(biciMap@data) # datos
 
-# Mapa comunas Santiago (ciudad)
+ # Mapa comunas Santiago (ciudad)
 #Fuente: http://www.censo2017.cl/servicio-de-mapas/
 
 ComunasR13Map<-readOGR("Class_07/ComunasR13/COMUNA_C17.shp")
