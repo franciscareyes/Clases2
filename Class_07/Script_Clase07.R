@@ -16,11 +16,11 @@ names(COVID)[6]<-paste0("Confirmados_",substr(archivos[1],start = 1,stop = 10))
 
 for(i in 2:length(archivos)){
   aa<-fread(input =paste0("Class_06/producto2/",archivos[i]))
-  aa<-aa[,.(`Codigo comuna`,`Casos Confirmados`)]
+  aa<-aa[,.(`Codigo comun a`,`Casos Confirmados`)]
   names(aa)[2]<-paste0("Confirmados_",substr(archivos[i],start = 1,stop = 10))
   COVID<-merge(COVID,aa,by="Codigo comuna",all.x=T,sort=F)
 }
-#View(COVID)
+View(COVID)
 
 COVID[is.na(`Confirmados_2020-03-30`),`Confirmados_2020-03-30`:=0]
 
@@ -42,30 +42,44 @@ comunas_rm<-mapa_comunas[mapa_comunas$codigo_region==13,]
 
 comunas_rm<-merge(x = comunas_rm,y = COVID[`Codigo region`==13,],by.x="codigo_comuna",by.y="Codigo comuna",all.x=TRUE,sort=F)
 
-comunas_rm<-st_sf(comunas_rm)
-#as_Spatial
+comunas_rm<-st_sf(comunas_rm) #Declara un data frame como objeto sf
+class(comunas_rm)
 
-library(spdep)
+comunas_rm<-as_Spatial(comunas_rm) # transformar sf a sp
 
-nbs<-poly2nb(comunas_rm,queen = T)
+class(comunas_rm)
+library(spdep) #Estadistica espacial de dependencia
+
+nbs<-poly2nb(comunas_rm,queen = T) #Esto define vecindad
 
 w_rm<-nb2listw(nbs,style = "W")
 
 plot(comunas_rm)
 plot(nbs,coordinates(comunas_rm),add=T,col='blue',pch=".")
 
-names(comun)
+#Se le agrega @data pr lo cambiamos a sp, entonces con data podemos seleccionar columnas
+names(comunas_rm@data)
 
-comunas_rm$Confirmados_2020.04.17_sl<-lag.listw(w_rm,comunas_rm$Confirmados_2020.04.17)
+comunas_rm@data$Confirmados_2020.04.17_sl<-lag.listw(w_rm,comunas_rm@data$Confirmados_2020.04.17) 
+# Resago espacial de mi variable, cuales son los valores de esta variable en un espacio distinto, cuales son los valores de mis vecinos.
+#Promedio ponderado de mis vecinos, es una matriz W
+# sl -> sapcial lag
+ 
+View(comunas_rm@data[,c("Confirmados_2020.04.17","Confirmados_2020.04.17_sl")])
+View(comunas_rm@data[,c("Comuna","Confirmados_2020.04.17","Confirmados_2020.04.17_sl")])
+
+#La ultima columnas muestra el promedio ponderado de los vecinos de contagio, valor promedio de mis vecinos
 
 plot(comunas_rm$Confirmados_2020.04.17,comunas_rm$Confirmados_2020.04.17_sl)
-identify(comunas_rm$Confirmados_2020.04.17,comunas_rm$Confirmados_2020.04.17_sl, comunas_rm$Comuna, cex = 0.8)
+identify(comunas_rm$Confirmados_2020.04.17,comunas_rm$Confirmados_2020.04.17_sl, comunas_rm$Comuna, cex = 0.6)
+#identify me sirve para seleccionar los nombres que quiero que se muestren
 
-# Global Moran's I    
+# Global Moran's I    , va a tomar la pendiente entre estas dos variables 
 
 moran.test(comunas_rm$Confirmados_2020.04.17,listw = w_rm)
 
 moran.plot(comunas_rm$Confirmados_2020.04.17,listw = w_rm,)
+#Linea media entre las variables, lineas punteadas son las media de cada variable, van definiendo cuadrantes.
 
 ggplot(comunas_rm@data,aes(x=Confirmados_2020.04.17,y=Confirmados_2020.04.17_sl))+geom_point()+geom_smooth(method = 'lm',se = F) +geom_smooth(method = 'loess',se = F,col='darkgreen') +geom_hline(yintercept = mean(comunas_rm@data$Confirmados_2020.04.17_sl),col='red') +geom_vline(xintercept = mean(comunas_rm@data$Confirmados_2020.04.17),col='red')
 
@@ -73,16 +87,22 @@ ggplot(comunas_rm@data,aes(x=Confirmados_2020.04.17,y=Confirmados_2020.04.17_sl)
 #### Local Moran
 
 locM<-localmoran(x = comunas_rm$Confirmados_2020.04.17,listw = w_rm)
-summary(locM)
+summary(locM) #Un resumen espacialpor comunas
 
+# Como definir los distintos tipos de clusters , la diagonal positiva low low y high high.
+
+#Sacar las medias de las variables 
 meanConf<-mean(comunas_rm$Confirmados_2020.04.17)
 meanConf_sl<-mean(comunas_rm$Confirmados_2020.04.17_sl)
 
-comunas_rm$quad_sig <- 5
-comunas_rm@data[(comunas_rm$Confirmados_2020.04.17 >= meanConf & comunas_rm$Confirmados_2020.04.17_sl >= meanConf_sl) & (locM[, 5] <= 0.1), "quad_sig"] <- 1
-comunas_rm@data[(comunas_rm$Confirmados_2020.04.17 <= meanConf & comunas_rm$Confirmados_2020.04.17_sl <= meanConf_sl) & (locM[, 5] <= 0.1), "quad_sig"] <- 2
-comunas_rm@data[(comunas_rm$Confirmados_2020.04.17 >= meanConf & comunas_rm$Confirmados_2020.04.17_sl <= meanConf_sl) & (locM[, 5] <= 0.1), "quad_sig"] <- 3
-comunas_rm@data[(comunas_rm$Confirmados_2020.04.17 >= meanConf & comunas_rm$Confirmados_2020.04.17_sl <= meanConf_sl) & (locM[, 5] <= 0.1), "quad_sig"] <- 4
+#Me va a mostrara si son o no significativos, el 5 siginifica que NO son significativos 
+comunas_rm@data$quad_sig <- 5 
+
+#Voy a reemplazar los que son significativos con otros numeros, usando una significancia del 10% 
+comunas_rm@data[(comunas_rm@data$Confirmados_2020.04.17 >= meanConf & comunas_rm@data$Confirmados_2020.04.17_sl >= meanConf_sl) & (locM[, 5] <= 0.1), "quad_sig"] <- 1 #high high
+comunas_rm@data[(comunas_rm@data$Confirmados_2020.04.17 <= meanConf & comunas_rm@data$Confirmados_2020.04.17_sl <= meanConf_sl) & (locM[, 5] <= 0.1), "quad_sig"] <- 2 #low low
+comunas_rm@data[(comunas_rm@data$Confirmados_2020.04.17 >= meanConf & comunas_rm@data$Confirmados_2020.04.17_sl <= meanConf_sl) & (locM[, 5] <= 0.1), "quad_sig"] <- 3
+comunas_rm@data[(comunas_rm@data$Confirmados_2020.04.17 >= meanConf & comunas_rm@data$Confirmados_2020.04.17_sl <= meanConf_sl) & (locM[, 5] <= 0.1), "quad_sig"] <- 4
 
 # Set the breaks for the thematic map classes
 breaks <- seq(1, 5, 1)
