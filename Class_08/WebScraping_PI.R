@@ -12,6 +12,7 @@
 # paquetes
 packages<-c('rvest','httr','XML','data.table','devtools')
 sapply(packages,FUN = require,character.only=T)
+#install.packages("devtools")
 vignette("selectorgadget")
 #https://cran.r-project.org/web/packages/rvest/vignettes/selectorgadget.html
 
@@ -22,12 +23,13 @@ vignette("selectorgadget")
   url<-'https://www.portalinmobiliario.com/arriendo/departamento/antofagasta-antofagasta?ca=3&ts=1&mn=1&or=&sf=1&sp=0&at=0&pg=1'  
 
   #extracting raw prices
-  list<-read_html(url)
-  prices<-html_nodes(list,".price__fraction")%>%html_text()
-  prices<-gsub(pattern ="." ,replacement = "",x = prices,fixed = T)
+  list<-read_html(url) #Explorador de internet, baja toda la pag de interner
+  prices<-html_nodes(list,".price__fraction")%>%html_text() #htm ayuda a buscar cosas en la pág, en este caso los precios
+  prices<-gsub(pattern ="." ,replacement = "",x = prices,fixed = T) #gsub: busca patrones de texto en la web, en este caso le quito el punto
   
 
-#extracting links to specific properties
+#extracting links to specific properties, sacar cosas especificas de la pág, en cada dept meterse y que saquelo que quiero
+# Nombre de las cosas las saco de la pág.
 list<-read_html(url)%>%
   html_nodes(".item__info") %>%
   html_nodes(".stack_column_item")%>%
@@ -37,7 +39,7 @@ list<-read_html(url)%>%
   unique()
 
 list<-list[!is.na(list),]
-
+#lista de las paginas, en cada parte
 
 # Nivel de Scrape: Propiedad
 
@@ -46,6 +48,7 @@ urlprop <- read_html(suburl)
 
 
 #Precio
+#saco el precio del depto
 precio <- urlprop %>% 
   html_nodes(".price-tag-fraction") %>%
   html_text()%>%
@@ -59,6 +62,7 @@ precio <- urlprop %>%
     html_text()%>%
     gsub(pattern="\\D+", replacement=" ")%>%
     trimws(which = "both")
+#trimws--> sacar el espacio en blanco de los numero
   
   area_total<-as.numeric(area[1])
   area_util<-as.numeric(area[2])
@@ -96,13 +100,13 @@ precio <- urlprop %>%
   
   
   
-  # doing a loop 
+  # doing a loop : voy a guardar en un alista las propiedades de cada depto
   
   #setting data storage
   departamentos_arriendo<-NULL
   
-  #scraping departamentos # 25 paginas
-  for(j in 1:25){
+  #scraping departamentos # 8 paginas
+  for(j in 1:8){
     url<-paste0('https://www.portalinmobiliario.com/arriendo/departamento/antofagasta-antofagasta?ca=3&ts=1&mn=1&or=&sf=1&sp=0&at=0&pg=',j)  
     
     #extracting links of all pages

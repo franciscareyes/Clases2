@@ -11,36 +11,41 @@
 
 # paquetes
 packages<-c('satellite','raster','rgdal','leaflet','RColorBrewer','data.table','RStoolbox')
-sapply(packages,FUN = require,character.only=T)
+sapply(packages,FUN = require,character.only=T) #Sirve para que me cargue los paquetes
 #install.packages('satellite')
 #install.packages('RStoolbox')
 
-#cargando datos
+#cargando datos --> SON LOS DATOS DE WEBCURSOS
 path<- paste0(getwd(),"/Class_08/LC08_L1TP_001076_20180228_20180308_01_T1/")
 files <- list.files(path,pattern=glob2rx("LC08*.TIF"), full.names = T)
 sat<-satellite(files)
 
+#Me muestra los meta datos
 sat1<-readMeta(paste0(path,"LC08_L1TP_001076_20180228_20180308_01_T1_MTL.txt"))
 sat1<-stackMeta(paste0(path,"LC08_L1TP_001076_20180228_20180308_01_T1_MTL.txt"),allResolutions = T)
 
+#Toma las imagenes y los pone juntos en un mismo cubi de datos
 sat<-stack(sat) # stacking layers
 
 # loading the panchromatic layer (15 mts resolution)
 
-pan<-raster(files[10])
+pan<-raster(files[10]) #raster para aclarar los metros
 
 #-------------------------------------
 #analyzing data
 #-------------------------------------
 names(sat) 
-nlayers(sat)
-res(sat)
-ncell(sat)
+nlayers(sat)#Cuantas capas tiene
+res(sat) #Resolucion de pixeles
+res(pan)
+ncell(sat)# numero de celdas
 dim(sat)
 
 #-------------------------------------
 #plotting
 #-------------------------------------
+
+## Plotear la imagen con las distintas combinaciones de colores
 plotRGB(sat, r=4,g=3,b=2,stretch='lin') #True color composite
 plotRGB(sat, r=5,g=4,b=3,stretch='lin') #NIR false color composite
 plotRGB(sat, r=7,g=5,b=1,stretch='lin') #SWIR false color composite
@@ -49,14 +54,16 @@ plotRGB(sat, r=10,g=7,b=3,stretch='lin') # TIR false composite
 #-------------------------------------
 #Spatial Subset - selecting Antofagasta
 #-------------------------------------
-#drawExtent()
+#drawExtent() para seleccionar un lugar en el plot, en esta caso selcciona antofagaste
 e<-c(347303.5,361594.6,-2632700,-2594829)
 
-sat.anf<-crop(sat,e)
+sat.anf<-crop(sat,e) #crop para seleccionar la parte elegida, un zoom
 
+#plotea antofagaste
 plotRGB(sat.anf, r=3,g=2,b=1,stretch='lin')
 plotRGB(sat.anf, r=4,g=3,b=2,stretch='lin')
 
+#hace otro zoom para que se vea mejor
 e1<-c(352702.6,360973.6,-2627103,-2600194)
 
 sat.anf<-crop(sat.anf,e1)
@@ -65,6 +72,7 @@ pan.anf<-crop(pan,e1)
 #-------------------------------------
 #plotting subset data
 #-------------------------------------
+#Diferentes colores, puedo ver vegetacion, donde hay nubes, calor, color real,etc
 plotRGB(sat.anf, r=4,g=3,b=2,stretch='lin') # true color
 plotRGB(sat.anf,r=5,g=5,b=5,stretch='lin') # band 5 Near Infra Red (NIR)
 plotRGB(sat.anf, r=5,g=4,b=3,stretch='lin') # Vegetation false color composite - healthy vegetation in red
@@ -76,24 +84,29 @@ plotRGB(sat.anf, r=10,g=7,b=3,stretch='lin') # TIR false composite
 # reference: https://landsat.gsfc.nasa.gov/landsat-8/landsat-8-bands/ 
 
 #-------------------------------------
-# Normalized Difference Vegetation Index (NDVI)
+# Normalized Difference Vegetation Index (NDVI): Cada capa de cada color tiene un pixel y cada pixel tiene un valor
+# indice normalizado de diferencia de vegetacion 
 #-------------------------------------
 # i=NIR and k=red are bands depending on satellite
 
-#NDVI = (NIR - red)/(NIR + red)
+#NDVI = (NIR - red)/(NIR + red) #Sacarle el rojo para ver que parte es vegetacion y entenderla
 
 vi <- function(img, i, k){
-    bi <- img[[i]]
+    bi <- img[[i]] 
     bk <- img[[k]]
     vi <- (bi-bk)/(bk+bi)
     return(vi)
 }
 
+#img[[NIR]] de la imagen ver la capa NIR
+
 #For landstat8, NIR=5, red=4
+
 ndvi<-vi(sat.anf,5,4)
+#Hago funcionar la funcion dando valores a las variables
 
 plot(ndvi, col = rev(terrain.colors(30)), main = 'NDVI from LandSat8')
-
+#Se logra ver niveles de vegetación, más verde más vegetación
 
 
 
@@ -110,8 +123,11 @@ proj.CL <- "+proj=longlat +datum=WGS84 +no_defs"
 
 coords<-SpatialPointsDataFrame(coords,proj4string = CRS(proj.CL),data=arriendos)
 coords<-spTransform(coords,CRSobj = sat.anf@crs)
+#sat.anf es de lo que se descarga en WC
 
-sat.anf.pointvalues<-extract(ndvi,coords,buffer=10,fun=max,na.rm=T,df=T)
+sat.anf.pointvalues<-extract(ndvi,coords,buffer=10,fun=max,na.rm=T,df=T) 
+#extraer de este raster los valores de estas coordenadas,
+#para cada uno de los puntos generar un radio de 10 metros y que me de un maximo de lo ¡s valores de NDVI
 
 coords@data<-cbind(coords@data,sat.anf.pointvalues[,2])
 names(coords@data)[13]<-"NDVI"
@@ -138,11 +154,14 @@ leaflet(coords@data)%>%
 # Creating a polygon-shapefile from raster values
 #-------------------------------------
 
+#poligons raster--> me muestra los que son menir a 0,2 y 0,3 , los valores, cuando lo ploteo me muestra en el maà
+
 averdes<-rasterToPolygons(ndvi,fun=function(x){x>0.3})
 averdes<-rasterToPolygons(ndvi,fun=function(x){x>=0.2})
 averdes<-spTransform(averdes,CRSobj = proj.CL)
 averdes@data
 
+#rasterimage--> cuadrados que cumplen con estos raster
 leaflet(averdes)%>%
   addProviderTiles(providers$OpenStreetMap.BlackAndWhite, group = "Toner Lite")%>%
   addPolygons(group="Areas Verdes",label =~as.character(round(layer,2)))%>%
