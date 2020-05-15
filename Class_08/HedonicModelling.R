@@ -15,9 +15,13 @@ sapply(packages,FUN = require,character.only=T)
 
 # Calculando distancias
 #install.packages("spatstat")
-# Euclidianas
+
+#Hipotesis nula, la ubicacion de las areas verdes para los departamentos no importan en su precio
+
+# Euclidianas ( en linea recta)
 coords@data$distEu_av_sat<-geoshape(longvar = coords@data$coords.2.,latvar = coords@data$coords.1.,pointfile = averdes)*0.621371
 coords@data$distEu_av_prc<-geoshape(longvar = coords@data$coords.2.,latvar = coords@data$coords.1.,pointfile = prc_averdes)*0.621371
+#geoshape da la distancia entre cirtos puntod
 
 #-------------------------------------
 # OLS
@@ -65,6 +69,8 @@ names(dataANF)[grepl("coords",x = names(dataANF))]<-c("lat","lon")
 f6<-formula(ln_precio ~ rooms+ casa + area_util+ distEu_av_sat + dist_CBD)
 m6<-cparlwr(f6,nonpar = ~lon+lat,distance = "Latlong",data=dataANF,targetobs = "alldata")
 summary(m6$xcoef)
+
+#targetobs = "alldata" corro una regresion para cada dato
 
 
 f7<-formula(ln_precio ~ rooms+ casa + area_util+ distEu_av_sat + dist_CBD)
